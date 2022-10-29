@@ -57,7 +57,7 @@ def getInstructions(pool):
                                 instruction["step"]), instruction["instruction"], instruction["photo"]])
                         print(
                             f"Instructions for recipe {recipe_id} successfully scraped.")
-                        time.sleep(10)
+                        time.sleep(15)
                     except Error as e:
                         print(e)
                         break

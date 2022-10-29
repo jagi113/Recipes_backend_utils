@@ -80,7 +80,7 @@ def scrapeIngredientNutritions(ingredientURL):
     ingredient_name = soup.find(
         "h1", {"class": "header2-font-lg"}).text.strip()
     ingredient_kcal = soup.find(
-        "span", text=lambda t: t and "kcal" in t).string.split(" ")[0]
+        "span", text=lambda t: t and "kcal" in t).string.replace("kcal", "").replace(" ", "").replace("\xa0642", "")
     ingredient_nutritions = {"ingredient_url": ingredientURL,
                              "ingredient_name": ingredient_name, "ingredient_kcal": float(ingredient_kcal)}
     nutritions = soup.find("tbody")
