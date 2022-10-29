@@ -6,8 +6,16 @@ import time
 import requests
 from bs4 import BeautifulSoup
 
+# Read database - PostgreSQL
+from psycopg_pool import ConnectionPool
+import psycopg
+from database_config.config import config
 
-def writing_query(values):
+params = psycopg.conninfo.make_conninfo(conninfo=config("database.ini"))
+pool = ConnectionPool(params)
+
+
+def writing_query(conn, cur, values):
     try:
         cur.executemany("""
             INSERT INTO instructions (recipe_id, step, instruction, photo) 
@@ -53,5 +61,5 @@ def getInstructions(pool):
                     except Error as e:
                         print(e)
                         break
-                writing_query(instruction_block)
+                writing_query(conn, cur, instruction_block)
     conn.close()

@@ -7,8 +7,16 @@ import time
 import requests
 from bs4 import BeautifulSoup
 
+# Read database - PostgreSQL
+from psycopg_pool import ConnectionPool
+import psycopg
+from database_config.config import config
 
-def writing_tag_query(values):
+params = psycopg.conninfo.make_conninfo(conninfo=config("database.ini"))
+pool = ConnectionPool(params)
+
+
+def writing_tag_query(conn, cur, values):
     try:
         cur.executemany("""
             INSERT INTO tags (recipe_id, tag) 
@@ -22,7 +30,7 @@ def writing_tag_query(values):
         print(f"The error '{e}' occurred")
 
 
-def writing_ingredients_query(values):
+def writing_ingredients_query(conn, cur, values):
     try:
         cur.execute("""
             INSERT INTO recipe_ingredients (recipe_id, preparation_group, ingredient_id, amount, unit) 
@@ -37,7 +45,7 @@ def writing_ingredients_query(values):
         print(f"The error '{e}' occurred")
 
 
-def writing_nutritions_query(values):
+def writing_nutritions_query(conn, cur, values):
     try:
         cur.execute("""
             INSERT INTO ingredient_nutritions (url, name, kcal, protein, protein_unit, carbohydrate, carbohydrate_unit, sugar, sugar_unit, fats, fats_unit, saturated_fatty_acids, saturated_fatty_acids_unit, transfatty_acids, transfatty_acids_unit, monounsaturated_fats, monounsaturated_fats_unit, polyunsaturated_fats, polyunsaturated_fats_unit, cholesterol, cholesterol_unit, fiber, fiber_unit, salt, salt_unit, water, water_unit, calcium, calcium_unit, PHE, PHE_unit) 
@@ -77,7 +85,7 @@ def getIngredientsNutritionsTags(pool):
                     recipe_tags = []
                     for tag in tags:
                         recipe_tags.append([recipe_id, tag])
-                    writing_tag_query(recipe_tags)
+                    writing_tag_query(conn, cur, recipe_tags)
 
                     # getting ingredients
                     ingredients = scrapeRecipeIngredients(recipe_soup)
@@ -116,12 +124,12 @@ def getIngredientsNutritionsTags(pool):
                             print(
                                 f'Ingredient nutrition from {ingredient_url} scraped and being saved.')
                             ingredient_id = int(
-                                writing_nutritions_query(ingredient_nutritions)[0])
+                                writing_nutritions_query(conn, cur, ingredient_nutritions)[0])
                         print(f'Ingredient id is: {ingredient_id}')
                         # Saving recipe ingredient with amount
                         recipe_ingredient = [recipe_id, ingredient["group"],
                                              ingredient_id, ingredient["amount"], ingredient["amount_unit"]]
-                        writing_ingredients_query(recipe_ingredient)
+                        writing_ingredients_query(conn, cur, recipe_ingredient)
                         print(
                             "-------------------------------------------------------")
                     print(

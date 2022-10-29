@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 from psycopg_pool import ConnectionPool
 import psycopg
-
 from database_config.config import config
+
 from scraping.getInstructions import getInstructions
 from scraping.getIngredientsNutritionsTags import getIngredientsNutritionsTags
 from scraping.getRecipes import getRecipes

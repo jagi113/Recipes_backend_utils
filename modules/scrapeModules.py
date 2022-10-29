@@ -40,6 +40,8 @@ def scrapeRecipeIngredients(recipe_soup):
                         surovina_amount = None
                 if surovina_info[1].lower() in ["g", "mg", "kg", "ks", "l", "ml", "dl", "pl", "čl", "bal", "bal."]:
                     surovina_unit = surovina_info[1].lower().replace(".", "")
+                else:
+                    surovina_unit = None
             else:
                 surovina_amount = None
                 surovina_unit = None

@@ -6,9 +6,15 @@ import time
 
 
 # Read database - PostgreSQL
+from psycopg_pool import ConnectionPool
+import psycopg
+from database_config.config import config
+
+params = psycopg.conninfo.make_conninfo(conninfo=config("database.ini"))
+pool = ConnectionPool(params)
 
 
-def writing_query(values):
+def writing_query(conn, cur, values):
     try:
         cur = conn.cursor()
         cur.executemany("""
@@ -33,7 +39,7 @@ def getRecipes(pool):
                 for recipe in page_recipes:
                     recipes.append(
                         [recipe["name"], recipe["url"], recipe["photo"]])
-                writing_query(recipes)
+                writing_query(conn, cur, recipes)
                 print(f"Page {i} scraped.")
                 time.sleep(10)
     conn.close()
