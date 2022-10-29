@@ -41,5 +41,5 @@ def getRecipes(pool):
                         [recipe["name"], recipe["url"], recipe["photo"]])
                 writing_query(conn, cur, recipes)
                 print(f"Page {i} scraped.")
-                time.sleep(15)
+                time.sleep(10)
     conn.close()

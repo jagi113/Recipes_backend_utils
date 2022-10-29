@@ -36,10 +36,16 @@ def writing_ingredients_query(conn, cur, values):
             INSERT INTO recipe_ingredients (recipe_id, preparation_group, ingredient_id, amount, unit) 
             VALUES (%s, %s, %s, %s, %s) 
             ON CONFLICT DO NOTHING
+            RETURNING id
             """, (values))
+        id = cur.fetchone()
         conn.commit()
-        print(
-            f'Ingredient {values[2]} for recipe {values[0]} successfully written.')
+        if id:
+            print(
+                f'Ingredient {values[2]} for recipe {values[0]} successfully written.')
+        else:
+            print(
+                f'!!!!!!!!!!!!!!!!!!!!!Ingredient {values[2]} for recipe {values[0]} WAS NOT written.!!!!!!!!!!!!!!!!!!!!!')
         time.sleep(7)
     except Error as e:
         print(f"The error '{e}' occurred")
