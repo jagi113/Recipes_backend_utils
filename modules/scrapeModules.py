@@ -1,10 +1,14 @@
 import requests
 from bs4 import BeautifulSoup
 
+sesh = requests.Session()
+headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_5_8; en-US) AppleWebKit/534.1 (KHTML, like Gecko) Chrome/6.0.422.0 Safari/534.1', 'Upgrade-Insecure-Requests': '1',
+           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'DNT': '1', 'Accept-Encoding': 'gzip, deflate', 'Accept-Language': 'it-IT,', 'Cookie': 'CONSENT=YES+cb.20210418-17-p0.it+FX+917; '}
+
 
 def getRecipe(page_num):
     URL = f'https://varecha.pravda.sk/recepty/{page_num}'
-    page = requests.get(URL)
+    page = sesh.get(URL, headers)
     soup = BeautifulSoup(page.content, "html.parser")
     recepty = soup.find_all("a", {"class": "card-a"})
     page_recepty = []
@@ -57,10 +61,8 @@ def scrapeRecipeIngredients(recipe_soup):
 
 def scrapeIngredientWebsite(ingredient):
     # passing cookie confirmation site
-    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_5_8; en-US) AppleWebKit/534.1 (KHTML, like Gecko) Chrome/6.0.422.0 Safari/534.1', 'Upgrade-Insecure-Requests': '1',
-               'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'DNT': '1', 'Accept-Encoding': 'gzip, deflate', 'Accept-Language': 'it-IT,', 'Cookie': 'CONSENT=YES+cb.20210418-17-p0.it+FX+917; '}
     googleurl = f'https://www.google.com/search?q={ingredient.replace(" ","+")}+kaloricke+tabulky'
-    googlepage = requests.get(googleurl, headers=headers)
+    googlepage = sesh.get(googleurl, headers=headers)
     googlesoup = BeautifulSoup(googlepage.text, "html.parser")
     ingredient_url = ""
     for url in googlesoup.find_all("a"):
@@ -73,9 +75,7 @@ def scrapeIngredientWebsite(ingredient):
 
 
 def scrapeIngredientNutritions(ingredientURL):
-    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_5_8; en-US) AppleWebKit/534.1 (KHTML, like Gecko) Chrome/6.0.422.0 Safari/534.1', 'Upgrade-Insecure-Requests': '1',
-               'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'DNT': '1', 'Accept-Encoding': 'gzip, deflate', 'Accept-Language': 'it-IT,', 'Cookie': 'CONSENT=YES+cb.20210418-17-p0.it+FX+917; '}
-    page = requests.get(ingredientURL, headers=headers)
+    page = sesh.get(ingredientURL, headers=headers)
     soup = BeautifulSoup(page.text, "html.parser")
     ingredient_name = soup.find(
         "h1", {"class": "header2-font-lg"}).text.strip()
