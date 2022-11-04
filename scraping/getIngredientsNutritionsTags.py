@@ -27,7 +27,7 @@ def writing_tag_query(conn, cur, values):
             """, (values))
         conn.commit()
         print(f'Recipe tags for recipe {values[0]} successfully written')
-        time.sleep(2)
+        time.sleep(5)
     except Error as e:
         print(f"The error '{e}' occurred")
 
@@ -48,7 +48,7 @@ def writing_ingredients_query(conn, cur, values):
         else:
             print(
                 f'!!!!!!!!!!!!!!!!!!!!!Ingredient {values[2]} for recipe {values[0]} WAS NOT written.!!!!!!!!!!!!!!!!!!!!!')
-        time.sleep(2)
+        time.sleep(15)
     except Error as e:
         print(f"The error '{e}' occurred")
 

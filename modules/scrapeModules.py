@@ -33,7 +33,7 @@ def scrapeRecipeIngredients(recipe_soup):
     for tr in suroviny_col.find_all("tr"):
         if (tr.attrs["class"][0] == 'recipe-ingredients__row'):
             surovina_info = tr.find(
-                "td", {"class": "recipe-ingredients__amount"}).text.replace("\xa0", " ").split()
+                "td", {"class": "recipe-ingredients__amount"}).text.replace("\xa0", " ").replace(",", ".").split()
             if len(surovina_info) >= 2:
                 try:
                     surovina_amount = float(surovina_info[0])
@@ -42,7 +42,7 @@ def scrapeRecipeIngredients(recipe_soup):
                         surovina_amount = (surovina_info[0].split("-"))[0]
                     else:
                         surovina_amount = None
-                if surovina_info[1].lower() in ["g", "mg", "kg", "ks", "l", "ml", "dl", "pl", "čl", "bal", "bal."]:
+                if surovina_info[1].lower().replace(".", "") in ["g", "mg", "kg", "ks", "l", "ml", "dl", "pl", "čl", "kl", "bal"]:
                     surovina_unit = surovina_info[1].lower().replace(".", "")
                 else:
                     surovina_unit = None
@@ -80,7 +80,7 @@ def scrapeIngredientNutritions(ingredientURL):
     ingredient_name = soup.find(
         "h1", {"class": "header2-font-lg"}).text.strip()
     ingredient_kcal = soup.find(
-        "span", text=lambda t: t and "kcal" in t).string.replace("kcal", "").replace(" ", "").replace("\xa0642", "")
+        "span", text=lambda t: t and "kcal" in t).string.replace("kcal", "").replace(" ", "").replace("\xa0642", "").replace(",", ".")
     ingredient_nutritions = {"ingredient_url": ingredientURL,
                              "ingredient_name": ingredient_name, "ingredient_kcal": float(ingredient_kcal)}
     nutritions = soup.find("tbody")
