@@ -19,4 +19,5 @@ setup(
     url='https://github.com/jagi113',
     license=license,
     packages=find_packages(exclude=('tests', 'docs'))
+
 )

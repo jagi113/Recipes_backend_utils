@@ -2,6 +2,7 @@
 
 from psycopg import Error
 from modules.scrapeModules import scrapeRecipeIngredients, scrapeIngredientWebsite, scrapeIngredientNutritions, getTags
+from modules.generalModules import currentTime, writeError
 import time
 
 import requests
@@ -12,24 +13,32 @@ from psycopg_pool import ConnectionPool
 import psycopg
 from database_config.config import config
 
-params = psycopg.conninfo.make_conninfo(conninfo=config("database.ini"))
-pool = ConnectionPool(params)
-
-sesh = requests.Session()
-
+error_file = "errorslog_ingredients.json"
 
 def writing_tag_query(conn, cur, values):
     try:
-        cur.executemany("""
+        ids = []
+        recipe_id = values[0][0]
+        for value in values:
+            cur.execute("""
             INSERT INTO tags (recipe_id, tag) 
             VALUES (%s, %s) 
             ON CONFLICT DO NOTHING
-            """, (values))
+            """, (value))
+        id = cur.fetchone()
+        if id:
+            ids.append(int(id[0]))
         conn.commit()
-        print(f'Recipe tags for recipe {values[0]} successfully written')
+        if len(ids) == len(values):
+            message = f'At {currentTime()} - {len(ids)} tags for recipe {recipe_id} were successfully written.'
+            print(message)
+        else:
+            error_message = f'At {currentTime()} - tags for recipe {recipe_id} already in database.'
+            writeError(error_file, {recipe_id: error_message})
         time.sleep(5)
     except Error as e:
-        print(f"The error '{e}' occurred")
+        error_message = f'At {currentTime()} - the database error "{e}" occurred.'
+        writeError(error_file, {recipe_id: error_message})
 
 
 def writing_ingredients_query(conn, cur, values):
@@ -43,14 +52,15 @@ def writing_ingredients_query(conn, cur, values):
         id = cur.fetchone()
         conn.commit()
         if id:
-            print(
-                f'Ingredient {values[2]} for recipe {values[0]} successfully written.')
+            message = f'Ingredient {values[2]} for recipe {values[0]} successfully written.'
+            print(message)
         else:
-            print(
-                f'!!!!!!!!!!!!!!!!!!!!!Ingredient {values[2]} for recipe {values[0]} WAS NOT written.!!!!!!!!!!!!!!!!!!!!!')
+            error_message =  f'At {currentTime()} - ingredient {values[2]} for recipe {values[0]} WAS NOT written.'
+            writeError(error_file, {values[0]: error_message})
         time.sleep(15)
     except Error as e:
-        print(f"The error '{e}' occurred")
+        error_message = f'At {currentTime()} - the database error "{e}" occurred.'
+        writeError(error_file, {recipe_id: error_message})
 
 
 def writing_nutritions_query(conn, cur, values):
@@ -63,10 +73,16 @@ def writing_nutritions_query(conn, cur, values):
             """, (values))
         id = cur.fetchone()
         conn.commit()
-        print(f'Ingredient {values[1]} with nutritions successfully written.')
+        if id:
+            message = f'Ingredient {values[1]} with nutritions successfully written.'
+            print(message)
+        else:
+            error_message =  f'At {currentTime()} - ingredient {values[1]} WAS NOT written due to duplicate.'
+            writeError(error_file, {values[1]: error_message})
         time.sleep(3)
     except Error as e:
-        print(f"The error '{e}' occurred")
+        error_message = f'At {currentTime()} - the database error "{e}" occurred.'
+        writeError(error_file, {recipe_id: error_message})
     return id
 
 
@@ -82,21 +98,15 @@ def getIngredientsNutritionsTags(pool):
                 reading_query = 'SELECT id, url FROM recipes WHERE id NOT IN (SELECT DISTINCT recipe_id FROM recipe_ingredients)'
                 cur.execute(reading_query)
                 recipe_id, recipe_url = cur.fetchone()
-                headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_5_8; en-US) AppleWebKit/534.1 (KHTML, like Gecko) Chrome/6.0.422.0 Safari/534.1', 'Upgrade-Insecure-Requests': '1',
-                           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'DNT': '1', 'Accept-Encoding': 'gzip, deflate', 'Accept-Language': 'it-IT,', 'Cookie': 'CONSENT=YES+cb.20210418-17-p0.it+FX+917; '}
                 try:
-                    page = sesh.get(recipe_url, headers=headers)
-                    print(recipe_url)
-                    recipe_soup = BeautifulSoup(page.content, "html.parser")
                     # getting and writing tags
-                    tags = getTags(recipe_soup)
-                    recipe_tags = []
-                    for tag in tags:
-                        recipe_tags.append([recipe_id, tag])
+                    tags = getTags(recipe_url, error_file, recipe_id)
+                    print(f'Recipe {recipe_id} has tags: {", ".join(tags)}')
+                    recipe_tags = [(recipe_id, tag) for tag in tags]
                     writing_tag_query(conn, cur, recipe_tags)
 
                     # getting ingredients
-                    ingredients = scrapeRecipeIngredients(recipe_soup)
+                    ingredients = scrapeRecipeIngredients(recipe_url, error_file, recipe_id)
                     for ingredient in ingredients:
                         print(ingredient)
 
@@ -147,3 +157,9 @@ def getIngredientsNutritionsTags(pool):
                     print(e)
                     break
     conn.close()
+
+
+if __name__ == "__main__":
+    params = psycopg.conninfo.make_conninfo(conninfo=config())
+    pool = ConnectionPool(params)
+    getIngredientsNutritionsTags(pool)

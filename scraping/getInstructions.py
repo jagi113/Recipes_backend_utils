@@ -1,67 +1,81 @@
 # Import libraries
 from psycopg import Error
 from modules.scrapeModules import scrapeRecipeInstructions
+from modules.generalModules import currentTime, writeError
 import time
 
 import requests
-from bs4 import BeautifulSoup
 
 # Read database - PostgreSQL
 from psycopg_pool import ConnectionPool
 import psycopg
 from database_config.config import config
 
-params = psycopg.conninfo.make_conninfo(conninfo=config("database.ini"))
-pool = ConnectionPool(params)
-
-sesh = requests.Session()
+error_file = "errorslog_instructions.json"
 
 
 def writing_query(conn, cur, values):
     try:
-        cur.executemany("""
-            INSERT INTO instructions (recipe_id, step, instruction, photo) 
-            VALUES (%s, %s, %s, %s) 
-            ON CONFLICT DO NOTHING
-            """, (values))
-        conn.commit()
-        print("Instructions successfully written")
-        time.sleep(10)
+        ids = []
+        recipe_id = values[0][0]
+        for value in values:
+            cur.execute("""
+                INSERT INTO instructions (recipe_id, step, instruction, photo) 
+                VALUES (%s, %s, %s, %s) 
+                ON CONFLICT DO NOTHING
+                RETURNING recipe_id
+                """, (value))
+            id = cur.fetchone()
+            if id:
+                ids.append(int(id[0]))
+            conn.commit()
+        if len(ids) == len(values):
+            message = f'At {currentTime()} - {len(ids)} instructions for recipe {recipe_id} were successfully written.'
+            print(message)
+        else:
+            error_message = f'At {currentTime()} - Instructions for recipe {recipe_id} already in database.'
+            writeError(error_file, {recipe_id: error_message})
     except Error as e:
-        print(f"The error '{e}' occurred")
+        error_message = f'At {currentTime()} - the database error "{e}" occurred.'
+        writeError(error_file, {recipe_id: error_message})
 
 
 def getInstructions(pool):
     with pool.connection() as conn:
         with conn.cursor() as cur:
-            # EXECUTE THE SQL QUERY
+            sesh = requests.Session()
+            # Getting number of recipes which need to scrape instructions
             cur.execute(
                 'SELECT COUNT(*) FROM recipes WHERE id NOT IN (SELECT DISTINCT recipe_id FROM instructions);')
             num_of_recipes = cur.fetchone()[0]
             for i in range(num_of_recipes//10 + 1):
                 print(
-                    f'There is still {num_of_recipes - i} that need to get instructions')
-                instruction_block = []
+                    f'There is still {num_of_recipes - i*10} recipes that need to get instructions')
+                # Getting ids and urls of 10 recipes from database to scrape instructions
                 reading_query = f'SELECT id, url FROM recipes WHERE id NOT IN (SELECT DISTINCT recipe_id FROM instructions) LIMIT 10 OFFSET {10*i}'
                 cur.execute(reading_query)
                 recipes = cur.fetchall()
                 for recipe in recipes:
                     recipe_id, recipe_url = recipe
-                    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_5_8; en-US) AppleWebKit/534.1 (KHTML, like Gecko) Chrome/6.0.422.0 Safari/534.1', 'Upgrade-Insecure-Requests': '1',
-                               'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'DNT': '1', 'Accept-Encoding': 'gzip, deflate', 'Accept-Language': 'it-IT,', 'Cookie': 'CONSENT=YES+cb.20210418-17-p0.it+FX+917; '}
                     try:
-                        page = sesh.get(recipe_url, headers=headers)
-                        recipe_soup = BeautifulSoup(
-                            page.content, "html.parser")
-                        instructions = scrapeRecipeInstructions(recipe_soup)
-                        for instruction in instructions:
-                            instruction_block.append([recipe_id, int(
-                                instruction["step"]), instruction["instruction"], instruction["photo"]])
-                        print(
-                            f"Instructions for recipe {recipe_id} successfully scraped.")
-                        time.sleep(2)
-                    except Error as e:
-                        print(e)
-                        break
-                writing_query(conn, cur, instruction_block)
+                        instructions = scrapeRecipeInstructions(recipe_url, error_file, recipe_id)
+                        instruction_block = [
+                            (recipe_id,
+                            int(instruction["step"]),
+                            instruction["instruction"],
+                            instruction["photo"])
+                            for instruction in instructions
+                            ]
+                        message = f"{len(instructions)} Instructions for recipe {recipe_id} successfully scraped."
+                        print(message)
+                    except:
+                        continue
+                    writing_query(conn, cur, instruction_block)
+                    time.sleep(10)
     conn.close()
+
+
+if __name__ == "__main__":
+    params = psycopg.conninfo.make_conninfo(conninfo=config())
+    pool = ConnectionPool(params)
+    getInstructions(pool)

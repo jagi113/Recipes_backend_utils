@@ -7,8 +7,11 @@ from scraping.getInstructions import getInstructions
 from scraping.getIngredientsNutritionsTags import getIngredientsNutritionsTags
 from scraping.getRecipes import getRecipes
 
-params = psycopg.conninfo.make_conninfo(conninfo=config("database.ini"))
-pool = ConnectionPool(params)
+choice_dict = {
+    "recipes": getRecipes,
+    "instructions": getInstructions,
+    "ingredients": getIngredientsNutritionsTags
+}
 
 
 def startCycle():
@@ -20,14 +23,14 @@ For scraping ingredients write 'ingredients',
 To exit write 'end'
 your choice: 
 >> """)
-        if choice == 'recipes':
-            getRecipes(pool)
-        elif choice == 'instructions':
-            getInstructions(pool)
-        elif choice == 'ingredients':
-            getIngredientsNutritionsTags(pool)
-        elif choice == 'end':
+        if choice == 'end':
             break
+        elif choice in choice_dict:
+            params = psycopg.conninfo.make_conninfo(
+                conninfo=config()
+            )
+            pool = ConnectionPool(params)
+            choice_dict[choice](pool)
 
 
 if __name__ == "__main__":

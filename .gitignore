@@ -23,6 +23,7 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+tutorial-env/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -91,3 +92,6 @@ ENV/
 
 # database info
 database.ini
+
+# error files
+errorslog*

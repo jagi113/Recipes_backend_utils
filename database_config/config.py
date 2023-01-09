@@ -34,7 +34,7 @@ def dict_config(config_db):
             return db_conn_dict
 
 
-def config(config_db):
+def config(config_db="database.ini"):
     section = 'postgresql'
     config_file_path = 'database_config/' + config_db
     if (len(config_file_path) > 0 and len(section) > 0):

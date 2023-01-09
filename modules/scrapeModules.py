@@ -1,15 +1,22 @@
 import requests
 from bs4 import BeautifulSoup
+from modules.generalModules import currentTime, writeError
+from unidecode import unidecode
 
-sesh = requests.Session()
+
 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_5_8; en-US) AppleWebKit/534.1 (KHTML, like Gecko) Chrome/6.0.422.0 Safari/534.1', 'Upgrade-Insecure-Requests': '1',
            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'DNT': '1', 'Accept-Encoding': 'gzip, deflate', 'Accept-Language': 'it-IT,', 'Cookie': 'CONSENT=YES+cb.20210418-17-p0.it+FX+917; '}
+sesh = requests.Session()
 
 
-def getRecipe(page_num):
+def getRecipe(page_num, error_file):
     URL = f'https://varecha.pravda.sk/recepty/{page_num}'
-    page = sesh.get(URL, headers)
-    soup = BeautifulSoup(page.content, "html.parser")
+    try:
+        page = sesh.get(URL, headers=headers)
+        soup = BeautifulSoup(page.content, "html.parser")
+    except requests.exceptions.RequestException as e:
+        error_message = f'At {currentTime()} - on page {page_num} - the connection error "{e}" occurred.'
+        writeError(error_file, error_message)
     recepty = soup.find_all("a", {"class": "card-a"})
     page_recepty = []
     for recept in recepty:
@@ -21,11 +28,15 @@ def getRecipe(page_num):
             name = recept["title"].strip()
         url = "https://varecha.pravda.sk"+recept["href"]
         photo = "https://varecha.pravda.sk"+recept["data-src"]
-        page_recepty.append({"name": name, "url": url, "photo": photo})
+        slug = unidecode(name.lower().replace(", ", "-").replace(". ", "-").replace(" ", "-"))
+        page_recepty.append(
+            {"name": name, "url": url, "photo": photo, "slug": slug})
     return page_recepty
 
 
-def scrapeRecipeIngredients(recipe_soup):
+def scrapeRecipeIngredients(recipe_url):
+    page = sesh.get(recipe_url, headers=headers)
+    recipe_soup = BeautifulSoup(page.content, "html.parser")
     suroviny_col = recipe_soup.find(
         "div", {"class": "col suroviny col-12 col-xs-12 col-sm-4 pl-0 pr-0 pr-sm-3"})
     ingredient_group = "main"
@@ -59,11 +70,15 @@ def scrapeRecipeIngredients(recipe_soup):
     return ingredients
 
 
-def scrapeIngredientWebsite(ingredient):
+def scrapeIngredientWebsite(ingredient, error_file, recipe_id):
     # passing cookie confirmation site
-    googleurl = f'https://www.google.com/search?q={ingredient.replace(" ","+")}+kaloricke+tabulky'
-    googlepage = sesh.get(googleurl, headers=headers)
-    googlesoup = BeautifulSoup(googlepage.text, "html.parser")
+    try:
+        googleurl = f'https://www.google.com/search?q={ingredient.replace(" ","+")}+kaloricke+tabulky'
+        googlepage = sesh.get(googleurl, headers=headers)
+        googlesoup = BeautifulSoup(googlepage.text, "html.parser")
+    except requests.exceptions.RequestException as e:
+        error_message = f'At {currentTime()} - the connection error "{e}" occurred.'
+        writeError(error_file, {recipe_id: error_message})
     ingredient_url = ""
     for url in googlesoup.find_all("a"):
         if "/url?q=https://www.kaloricketabulky.sk/potraviny/" in url.get('href'):
@@ -116,7 +131,13 @@ def scrapeIngredientNutritions(ingredientURL):
     return ingredient_nutritions
 
 
-def scrapeRecipeInstructions(recipe_soup):
+def scrapeRecipeInstructions(recipe_url, error_file, recipe_id):
+    try:
+        page = sesh.get(recipe_url, headers=headers)
+        recipe_soup = BeautifulSoup(page.content, "html.parser")
+    except requests.exceptions.RequestException as e:
+        error_message = f'At {currentTime()} - the connection error "{e}" occurred.'
+        writeError(error_file, {recipe_id: error_message})
     postup = recipe_soup.find("ol", {"class": "recipe-instructions"})
     instructions = []
     for step in postup.find_all("li", {"class": "recipe-instruction clearfix"}):
@@ -133,7 +154,13 @@ def scrapeRecipeInstructions(recipe_soup):
     return instructions
 
 
-def getTags(recipe_soup):
+def getTags(recipe_url, error_file, recipe_id):
+    try:
+        page = sesh.get(recipe_url, headers=headers)
+        recipe_soup = BeautifulSoup(page.content, "html.parser")
+    except requests.exceptions.RequestException as e:
+        error_message = f'At {currentTime()} - the connection error "{e}" occurred.'
+        writeError(error_file, {recipe_id: error_message})
     tag_col = recipe_soup.find("div", {"class": "recipe-in-tags"})
     tags = []
     for tag in tag_col.find_all("a", {"class": "color-varechalink"}):
@@ -142,10 +169,7 @@ def getTags(recipe_soup):
 
 
 """
-headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_5_8; en-US) AppleWebKit/534.1 (KHTML, like Gecko) Chrome/6.0.422.0 Safari/534.1', 'Upgrade-Insecure-Requests': '1',
-           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'DNT': '1', 'Accept-Encoding': 'gzip, deflate', 'Accept-Language': 'it-IT,', 'Cookie': 'CONSENT=YES+cb.20210418-17-p0.it+FX+917; '}
-recipe_url = "https://varecha.pravda.sk/recepty/mliecne-rozky-plnene-tvarohom-fotorecept/80749-recept.html"
-page = requests.get(recipe_url, headers=headers)
+
 recipe_soup = BeautifulSoup(page.content, "html.parser")
 print(scrapeRecipeIngredients(recipe_soup))
 
