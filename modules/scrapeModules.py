@@ -131,13 +131,13 @@ def scrapeIngredientNutritions(ingredientURL):
     return ingredient_nutritions
 
 
-def scrapeRecipeInstructions(recipe_url, error_file, recipe_id):
+def scrapeRecipeInstructions(recipe_url, error_file, recipe_slug):
     try:
         page = sesh.get(recipe_url, headers=headers)
         recipe_soup = BeautifulSoup(page.content, "html.parser")
     except requests.exceptions.RequestException as e:
-        error_message = f'At {currentTime()} - the connection error "{e}" occurred.'
-        writeError(error_file, {recipe_id: error_message})
+        error_message = f'At {currentTime()} - while scraping instructions for {recipe_slug} - the connection error "{e}" occurred.'
+        writeError(error_file, error_message)
     postup = recipe_soup.find("ol", {"class": "recipe-instructions"})
     instructions = []
     for step in postup.find_all("li", {"class": "recipe-instruction clearfix"}):
